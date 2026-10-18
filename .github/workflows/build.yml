@@ -5,6 +5,9 @@ on:
     branches: [main, master]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,8 +22,10 @@ jobs:
           gradle-version: '8.9'
       - name: Construire l'APK
         run: gradle assembleDebug --no-daemon
-      - name: Publier l'APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: jarvis-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publier l'APK pour le téléchargement direct
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk Jarvis.apk
+          gh release delete apk --yes --cleanup-tag || true
+          gh release create apk Jarvis.apk --title "Jarvis pour Android" --notes "Touche Jarvis.apk pour le télécharger, puis ouvre-le pour l'installer." --latest
