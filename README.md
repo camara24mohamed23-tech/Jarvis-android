@@ -29,3 +29,11 @@ Le modèle par défaut est `claude-haiku-5-5` (rapide et économique). Tu peux l
 | « Emmène-moi au marché Madina » | Ouvre Google Maps |
 
 Les appels et les SMS restent validés par toi : Jarvis ne peut pas les lancer seul.
+
+## Appel vocal, internet et actualité
+
+- **Appel vocal :** touche « Appel vocal ». Parle, Jarvis répond à voix haute puis réécoute, sans toucher l'écran. Dis « raccroche » ou touche « Raccrocher » pour finir. L'appel s'arrête seul après quelques silences.
+- **Recherche internet et actualité mondiale :** Jarvis cherche sur le web pour les infos récentes (actualité, politique, prix, météo, sport). Il cite ses sources et présente les positions de façon équilibrée sur les sujets disputés.
+- **Commandes en ligne :** Jarvis cherche le produit, compare des offres, ouvre la page ou prépare un message pour le vendeur. Tu finalises toi-même le paiement.
+
+La recherche internet doit être activée sur ton compte Anthropic (console.anthropic.com, Settings) et chaque recherche est facturée en plus des messages.

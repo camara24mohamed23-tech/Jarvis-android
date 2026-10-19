@@ -21,8 +21,10 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Le cerveau de Jarvis : parle à l'API Claude et exécute les actions sur le téléphone. */
 public class JarvisBrain {
@@ -40,6 +42,7 @@ public class JarvisBrain {
 
     static class Result {
         String text;
+        String sources = "";
         List<Runnable> actions = new ArrayList<>();
     }
 
@@ -49,6 +52,13 @@ public class JarvisBrain {
 
     JarvisBrain(Activity a) {
         act = a;
+    }
+
+    private volatile boolean voiceCall = false;
+
+    /** En appel vocal, Jarvis répond comme à l'oral : court, sans listes. */
+    void setVoiceCall(boolean on) {
+        voiceCall = on;
     }
 
     void clear() {
@@ -73,11 +83,12 @@ public class JarvisBrain {
         JSONArray tools = toolDefs();
         String system = systemPrompt();
         String finalText = "";
+        Map<String, String> sources = new LinkedHashMap<>();
 
-        for (int round = 0; round < 6; round++) {
+        for (int round = 0; round < 8; round++) {
             JSONObject body = new JSONObject()
                     .put("model", model)
-                    .put("max_tokens", 1024)
+                    .put("max_tokens", 1500)
                     .put("system", system)
                     .put("tools", tools)
                     .put("messages", msgs);
@@ -87,11 +98,30 @@ public class JarvisBrain {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < content.length(); i++) {
                 JSONObject b = content.getJSONObject(i);
-                if ("text".equals(b.optString("type"))) sb.append(b.optString("text"));
+                if ("text".equals(b.optString("type"))) {
+                    sb.append(b.optString("text"));
+                    JSONArray cites = b.optJSONArray("citations");
+                    if (cites != null) {
+                        for (int k = 0; k < cites.length(); k++) {
+                            JSONObject c = cites.optJSONObject(k);
+                            if (c == null) continue;
+                            String url = c.optString("url");
+                            String host = hostOf(url);
+                            if (!host.isEmpty() && !sources.containsKey(host)) sources.put(host, url);
+                        }
+                    }
+                }
             }
-            finalText = sb.toString().trim();
+            String piece = sb.toString().trim();
+            if (!piece.isEmpty()) finalText = piece;
 
-            if (!"tool_use".equals(resp.optString("stop_reason"))) break;
+            String stop = resp.optString("stop_reason");
+            if ("pause_turn".equals(stop)) {
+                // Une longue recherche est en pause : on renvoie la suite pour la reprendre.
+                msgs.put(new JSONObject().put("role", "assistant").put("content", content));
+                continue;
+            }
+            if (!"tool_use".equals(stop)) break;
 
             msgs.put(new JSONObject().put("role", "assistant").put("content", content));
             JSONArray results = new JSONArray();
@@ -116,8 +146,17 @@ public class JarvisBrain {
         history.add(new String[]{"user", userText});
         history.add(new String[]{"assistant", finalText});
 
+        StringBuilder src = new StringBuilder();
+        int shown = 0;
+        for (String host : sources.keySet()) {
+            if (shown >= 4) break;
+            src.append(shown > 0 ? ", " : "").append(host);
+            shown++;
+        }
+
         Result res = new Result();
         res.text = finalText;
+        res.sources = shown > 0 ? "Sources : " + src : "";
         res.actions = actions;
         return res;
     }
@@ -128,7 +167,7 @@ public class JarvisBrain {
         HttpURLConnection c = (HttpURLConnection) new URL(API_URL).openConnection();
         c.setRequestMethod("POST");
         c.setConnectTimeout(20000);
-        c.setReadTimeout(60000);
+        c.setReadTimeout(120000);
         c.setDoOutput(true);
         c.setRequestProperty("content-type", "application/json");
         c.setRequestProperty("x-api-key", key);
@@ -151,6 +190,16 @@ public class JarvisBrain {
         return new JSONObject(s);
     }
 
+    private static String hostOf(String url) {
+        try {
+            String h = Uri.parse(url).getHost();
+            if (h == null) return "";
+            return h.startsWith("www.") ? h.substring(4) : h;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private static String readAll(InputStream is) throws Exception {
         if (is == null) return "";
         ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -169,6 +218,9 @@ public class JarvisBrain {
             if (a.code == 404) return "Ce modèle n'existe pas. Vérifie son nom dans Réglages.";
             if (a.code == 429) return "Trop de demandes d'un coup. Réessaie dans un instant.";
             if (a.code == 529 || a.code >= 500) return "Le service Claude est surchargé. Réessaie dans un instant.";
+            if (a.code == 400 && a.getMessage() != null && a.getMessage().toLowerCase(Locale.ROOT).contains("search")) {
+                return "La recherche internet n'est pas activée sur ton compte Anthropic. Active-la dans la console (Settings, puis Privacy ou Capabilities), puis réessaie.";
+            }
             return "Erreur de l'API : " + a.getMessage();
         }
         if (e instanceof java.io.IOException) return "Pas de connexion internet.";
@@ -181,17 +233,24 @@ public class JarvisBrain {
         String now = new SimpleDateFormat("EEEE d MMMM yyyy 'à' HH:mm", Locale.FRANCE).format(new Date());
         String iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).format(new Date());
         return "Tu es JARVIS, l'assistant personnel de poche de l'utilisateur, installé sur son téléphone Android. "
-                + "Réponds toujours en français, de façon chaleureuse, claire et brève (1 à 4 phrases), car ta réponse est lue à voix haute. "
+                + "Réponds toujours en français, de façon chaleureuse, claire et brève (1 à 4 phrases en conversation courante, jusqu'à 8 phrases pour un résumé d'actualité), car ta réponse est lue à voix haute. "
                 + "Pas d'emojis, pas de titres, pas de markdown.\n"
                 + "Date et heure actuelles : " + now + " (heure locale " + iso + ").\n"
                 + "Tu disposes d'outils pour agir sur le téléphone : rappels et rendez-vous (creer_rappel, lister_rappels, supprimer_rappel), "
                 + "alarmes et minuteurs (regler_alarme, minuteur), appels et SMS (appeler, ecrire_sms), "
                 + "ouverture d'applications et de liens (ouvrir_application, ouvrir_lien), heure_actuelle. "
                 + "Utilise-les dès que la demande s'y prête, puis confirme en une phrase.\n"
+                + "Tu peux aussi chercher sur internet avec l'outil web_search. Utilise-le pour toute information récente ou qui peut avoir changé : actualité, politique, prix, météo, sport, résultats, produits, horaires, faits à vérifier. Ne commente pas tes recherches, donne directement le résultat.\n"
+                + "Actualité et politique : appuie-toi uniquement sur ce que tu trouves, cite la source et la date, distingue les faits des opinions. Sur les sujets disputés, présente les principales positions de façon équilibrée, sans donner ton avis personnel ni dénigrer un camp. Dis clairement quand une information n'est pas confirmée ou que les sources se contredisent.\n"
+                + "Commandes en ligne : tu ne peux pas payer ni passer commande toi-même. Cherche le produit, compare quelques offres (prix, vendeur, délai), puis ouvre la page du produit avec ouvrir_lien, ou prépare un message pour le vendeur avec ecrire_sms ou un lien https://wa.me/NUMERO?text=MESSAGE. L'utilisateur finalise lui-même le paiement. Ne demande jamais de numéro de carte ni de mot de passe.\n"
                 + "Les actions d'ouverture, d'appel, de SMS et d'alarme s'exécutent juste après ta réponse. "
                 + "Pour un appel ou un SMS, l'utilisateur valide lui-même sur l'écran du téléphone : ne dis jamais que l'appel est passé ou le SMS envoyé, "
                 + "dis que c'est prêt. Tu ne peux pas lire les contacts : demande le numéro si tu ne l'as pas.\n"
-                + "Si une demande est ambiguë (heure ou numéro manquant), pose une seule question courte.";
+                + "Si une demande est ambiguë (heure ou numéro manquant), pose une seule question courte."
+                + (voiceCall
+                ? "\nL'utilisateur est en appel vocal avec toi : parle comme à l'oral, en phrases courtes et naturelles (2 à 4 phrases, 6 au maximum pour l'actualité), "
+                + "sans énumération ni adresse web. Termine par une courte question seulement si elle aide vraiment à continuer."
+                : "");
     }
 
     // ------------------------------------------------------------------ Outils
@@ -238,6 +297,15 @@ public class JarvisBrain {
                 new JSONObject().put("nom", prop("string", "Nom de l'application")), "nom"));
         t.put(tool("ouvrir_lien", "Ouvre une adresse https (site web, Google Maps, YouTube, https://wa.me/NUMERO pour WhatsApp) ou une position geo:.",
                 new JSONObject().put("url", prop("string", "Adresse https:// ou geo:")), "url"));
+        t.put(new JSONObject()
+                .put("type", "web_search_20250305")
+                .put("name", "web_search")
+                .put("max_uses", 5)
+                .put("user_location", new JSONObject()
+                        .put("type", "approximate")
+                        .put("city", "Conakry")
+                        .put("country", "GN")
+                        .put("timezone", "Africa/Conakry")));
         return t;
     }
 

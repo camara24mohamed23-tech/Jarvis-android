@@ -21,6 +21,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -42,6 +43,8 @@ public class MainActivity extends Activity {
     private static final int MUTED = 0xFF8FB0B8;
     private static final int ACCENT = 0xFF4FD6E6;
     private static final int ACCENT_INK = 0xFF032329;
+    private static final int DANGER = 0xFFFF7A70;
+    private static final int DANGER_INK = 0xFF3A0A06;
 
     private static final int REQ_MIC = 1;
     private static final int REQ_NOTIF = 2;
@@ -49,7 +52,7 @@ public class MainActivity extends Activity {
     private LinearLayout log;
     private ScrollView scroll;
     private EditText input;
-    private Button micBtn, sendBtn, voiceBtn;
+    private Button micBtn, sendBtn, voiceBtn, callBtn;
     private TextView status;
 
     private TextToSpeech tts;
@@ -60,8 +63,16 @@ public class MainActivity extends Activity {
     private boolean voiceOn = true;
     private boolean busy = false;
     private boolean listening = false;
+    private boolean callMode = false;
+    private boolean pendingCall = false;
+    private int misses = 0;
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final Runnable listenRunnable = new Runnable() {
+        public void run() {
+            if (callMode && !busy && !listening) beginListening();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle b) {
@@ -94,7 +105,12 @@ public class MainActivity extends Activity {
                         public void onDone(String id) {
                             runOnUiThread(new Runnable() {
                                 public void run() {
-                                    if (!busy) setStatus("En veille");
+                                    if (callMode) {
+                                        setStatus("En appel");
+                                        if (!busy) main.postDelayed(listenRunnable, 400);
+                                    } else if (!busy) {
+                                        setStatus("En veille");
+                                    }
                                 }
                             });
                         }
@@ -113,8 +129,9 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
         }
 
-        addBubble(false, "Bonjour, je suis Jarvis. Parle-moi avec le micro ou écris-moi. Je peux répondre à tes questions, créer des rappels, "
-                + "régler une alarme, ouvrir une application ou préparer un appel ou un SMS.");
+        addBubble(false, "Bonjour, je suis Jarvis. Touche « Appel vocal » pour parler avec moi sans les mains, ou écris-moi. "
+                + "Je cherche sur Internet, je te donne l'actualité, je crée des rappels, je règle des alarmes, j'ouvre des applications "
+                + "et je prépare des appels, des SMS ou des commandes en ligne.");
         if (prefs.getString("apiKey", "").trim().isEmpty()) showSettings(true);
     }
 
@@ -175,7 +192,7 @@ public class MainActivity extends Activity {
                 voiceOn = !voiceOn;
                 prefs.edit().putBoolean("voice", voiceOn).apply();
                 voiceBtn.setText(voiceOn ? "Voix : oui" : "Voix : non");
-                if (!voiceOn && tts != null) tts.stop();
+                if (!voiceOn && !callMode && tts != null) tts.stop();
             }
         });
         Button settings = smallButton("Réglages");
@@ -198,6 +215,20 @@ public class MainActivity extends Activity {
         sl.topMargin = dp(8);
         root.addView(scroll, sl);
 
+        callBtn = new Button(this);
+        callBtn.setAllCaps(false);
+        callBtn.setTextSize(16);
+        styleCall(false);
+        callBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (callMode) endCall(true);
+                else startCall();
+            }
+        });
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
+        cl.topMargin = dp(8);
+        root.addView(callBtn, cl);
+
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.BOTTOM);
@@ -209,6 +240,7 @@ public class MainActivity extends Activity {
         micBtn.setBackground(round(SURFACE, LINE, 24));
         micBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
+                if (callMode) return;
                 toggleListening();
             }
         });
@@ -247,6 +279,12 @@ public class MainActivity extends Activity {
         root.addView(bar, barLp);
 
         setContentView(root);
+    }
+
+    private void styleCall(boolean active) {
+        callBtn.setText(active ? "Raccrocher" : "Appel vocal");
+        callBtn.setTextColor(active ? DANGER_INK : ACCENT);
+        callBtn.setBackground(active ? round(DANGER, DANGER, 24) : round(SURFACE, ACCENT, 24));
     }
 
     private GradientDrawable round(int fill, int stroke, int radiusDp) {
@@ -288,12 +326,68 @@ public class MainActivity extends Activity {
         status.setText(s);
     }
 
+    // ---------------------------------------------------------------- Appel vocal
+
+    private void startCall() {
+        if (prefs.getString("apiKey", "").trim().isEmpty()) {
+            showSettings(true);
+            return;
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Toast.makeText(this, "La reconnaissance vocale n'est pas disponible sur ce téléphone.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingCall = true;
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+            return;
+        }
+        callMode = true;
+        misses = 0;
+        brain.setVoiceCall(true);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        styleCall(true);
+        setStatus("En appel");
+        speak("Oui, je t'écoute.");
+    }
+
+    private void endCall(boolean sayBye) {
+        if (!callMode) return;
+        callMode = false;
+        brain.setVoiceCall(false);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        styleCall(false);
+        main.removeCallbacks(listenRunnable);
+        try {
+            if (recognizer != null) recognizer.cancel();
+        } catch (Exception ignored) {
+        }
+        listening = false;
+        micBtn.setText("Parler");
+        if (tts != null) tts.stop();
+        if (sayBye && tts != null && ttsReady) tts.speak("À bientôt.", TextToSpeech.QUEUE_FLUSH, null, "bye");
+        if (!busy) setStatus("En veille");
+    }
+
+    private boolean isHangup(String t) {
+        String s = t.toLowerCase(Locale.FRANCE).trim();
+        if (s.length() > 40) return false;
+        return s.contains("raccroche") || s.contains("au revoir") || s.contains("à bientôt") || s.contains("a bientôt")
+                || s.contains("fin de l'appel") || s.contains("termine l'appel") || s.equals("stop");
+    }
+
     // ---------------------------------------------------------------- Envoi
 
     private void send(String raw) {
         final String text = raw == null ? "" : raw.trim();
         if (text.isEmpty() || busy) return;
+        if (callMode && isHangup(text)) {
+            addBubble(true, text);
+            endCall(true);
+            return;
+        }
         if (prefs.getString("apiKey", "").trim().isEmpty()) {
+            endCall(false);
             showSettings(true);
             return;
         }
@@ -322,11 +416,11 @@ public class MainActivity extends Activity {
                         sendBtn.setEnabled(true);
                         if (error != null) {
                             pending.setText(error);
-                            setStatus("En veille");
                             scrollDown();
+                            speak(error);
                             return;
                         }
-                        pending.setText(res.text);
+                        pending.setText(res.sources == null || res.sources.isEmpty() ? res.text : res.text + "\n\n" + res.sources);
                         scrollDown();
                         speak(res.text);
                         final ArrayList<Runnable> acts = new ArrayList<Runnable>(res.actions);
@@ -344,8 +438,10 @@ public class MainActivity extends Activity {
     }
 
     private void speak(String text) {
-        if (!voiceOn || tts == null || !ttsReady) {
-            setStatus("En veille");
+        boolean want = voiceOn || callMode;
+        if (!want || tts == null || !ttsReady) {
+            setStatus(callMode ? "En appel" : "En veille");
+            if (callMode) main.postDelayed(listenRunnable, 500);
             return;
         }
         tts.speak(text.replaceAll("[*_#`]", ""), TextToSpeech.QUEUE_FLUSH, null, "jarvis");
@@ -367,13 +463,17 @@ public class MainActivity extends Activity {
             return;
         }
         if (tts != null) tts.stop();
+        beginListening();
+    }
+
+    private void beginListening() {
         if (recognizer == null) {
             recognizer = SpeechRecognizer.createSpeechRecognizer(this);
             recognizer.setRecognitionListener(new RecognitionListener() {
                 public void onReadyForSpeech(Bundle p) {
                     listening = true;
-                    micBtn.setText("Stop");
-                    setStatus("Je t'écoute…");
+                    micBtn.setText(callMode ? "…" : "Stop");
+                    setStatus(callMode ? "En appel : je t'écoute" : "Je t'écoute…");
                 }
 
                 public void onBeginningOfSpeech() {
@@ -391,6 +491,19 @@ public class MainActivity extends Activity {
                 public void onError(int code) {
                     listening = false;
                     micBtn.setText("Parler");
+                    boolean silent = code == SpeechRecognizer.ERROR_NO_MATCH || code == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                            || code == SpeechRecognizer.ERROR_RECOGNIZER_BUSY;
+                    if (callMode) {
+                        if (silent && ++misses < 4) {
+                            main.postDelayed(listenRunnable, 600);
+                            return;
+                        }
+                        Toast.makeText(MainActivity.this,
+                                silent ? "Je n'entends plus rien, j'ai raccroché." : "Problème de reconnaissance vocale, appel terminé.",
+                                Toast.LENGTH_LONG).show();
+                        endCall(false);
+                        return;
+                    }
                     setStatus("En veille");
                     if (code == SpeechRecognizer.ERROR_NO_MATCH || code == SpeechRecognizer.ERROR_SPEECH_TIMEOUT) {
                         Toast.makeText(MainActivity.this, "Je n'ai rien entendu. Réessaie.", Toast.LENGTH_SHORT).show();
@@ -402,8 +515,10 @@ public class MainActivity extends Activity {
                 public void onResults(Bundle r) {
                     listening = false;
                     micBtn.setText("Parler");
+                    misses = 0;
                     ArrayList<String> list = r.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                     if (list != null && !list.isEmpty()) send(list.get(0));
+                    else if (callMode) main.postDelayed(listenRunnable, 600);
                     else setStatus("En veille");
                 }
 
@@ -420,15 +535,30 @@ public class MainActivity extends Activity {
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "fr-FR");
         i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        recognizer.startListening(i);
+        try {
+            recognizer.startListening(i);
+        } catch (Exception e) {
+            listening = false;
+            if (callMode) endCall(false);
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
         super.onRequestPermissionsResult(code, perms, results);
         if (code == REQ_MIC) {
-            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) toggleListening();
-            else Toast.makeText(this, "Sans l'autorisation du micro, utilise le micro du clavier.", Toast.LENGTH_LONG).show();
+            boolean granted = results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED;
+            if (granted) {
+                if (pendingCall) {
+                    pendingCall = false;
+                    startCall();
+                } else {
+                    toggleListening();
+                }
+            } else {
+                pendingCall = false;
+                Toast.makeText(this, "Sans l'autorisation du micro, utilise le micro du clavier.", Toast.LENGTH_LONG).show();
+            }
         }
     }
 
@@ -481,8 +611,15 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        endCall(false);
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+        main.removeCallbacks(listenRunnable);
         if (tts != null) tts.shutdown();
         if (recognizer != null) recognizer.destroy();
         exec.shutdownNow();
