@@ -1,4 +1,4 @@
-name: Construire Jarvis
+name: Construire Camara AI
 
 on:
   push:
@@ -26,6 +26,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk Jarvis.apk
+          cp app/build/outputs/apk/debug/app-debug.apk CamaraAI.apk
           gh release delete apk --yes --cleanup-tag || true
-          gh release create apk Jarvis.apk --title "Jarvis pour Android" --notes "Touche Jarvis.apk pour le télécharger, puis ouvre-le pour l'installer." --latest
+          gh release create apk CamaraAI.apk --title "Camara AI pour Android" --notes "Touche CamaraAI.apk pour le télécharger, puis ouvre-le pour l'installer." --latest

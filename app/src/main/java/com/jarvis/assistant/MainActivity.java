@@ -24,6 +24,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.HorizontalScrollView;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.CheckBox;
 import android.widget.Switch;
 import android.widget.EditText;
@@ -55,7 +58,10 @@ public class MainActivity extends Activity {
     private LinearLayout log;
     private ScrollView scroll;
     private EditText input;
-    private Button micBtn, sendBtn, voiceBtn, callBtn;
+    private Button micBtn, voiceBtn;
+    private ImageButton sendBtn;
+    private OrbView orb;
+    private TextView orbLabel;
     private TextView status;
 
     private TextToSpeech tts;
@@ -132,7 +138,7 @@ public class MainActivity extends Activity {
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
         }
 
-        addBubble(false, "Bonjour, je suis Jarvis. Touche « Appel vocal » pour parler avec moi sans les mains, ou écris-moi. "
+        addBubble(false, "Bonjour, je suis Camara AI. Touche le grand cercle pour parler avec moi sans les mains, ou écris-moi. "
                 + "Je cherche sur Internet, je te donne l'actualité, je crée des rappels, je règle des alarmes, j'ouvre des applications "
                 + "et je prépare des appels, des SMS ou des commandes en ligne.");
         if (prefs.getString("apiKey", "").trim().isEmpty()) showSettings(true);
@@ -197,17 +203,18 @@ public class MainActivity extends Activity {
     private void buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BG);
+        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0xFF050F16, 0xFF0A2230}));
         root.setPadding(dp(16), dp(10), dp(16), dp(10));
 
+        // En-tête : nom, état, réglages
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
 
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
-        TextView title = label("JARVIS", 22, ACCENT, true);
-        title.setLetterSpacing(0.2f);
+        TextView title = label("CAMARA AI", 20, ACCENT, true);
+        title.setLetterSpacing(0.22f);
         status = label("En veille", 13, MUTED, false);
         brand.addView(title);
         brand.addView(status);
@@ -234,7 +241,29 @@ public class MainActivity extends Activity {
         top.addView(settings, bl);
         root.addView(top);
 
+        // Orbe central : un appui lance ou termine l'appel vocal
+        LinearLayout hero = new LinearLayout(this);
+        hero.setOrientation(LinearLayout.VERTICAL);
+        hero.setGravity(Gravity.CENTER_HORIZONTAL);
+        orb = new OrbView(this);
+        orb.setContentDescription("Appel vocal");
+        orb.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (callMode) endCall(true);
+                else startCall();
+            }
+        });
+        hero.addView(orb, new LinearLayout.LayoutParams(dp(150), dp(150)));
+        orbLabel = label("Touchez pour parler", 13, MUTED, false);
+        orbLabel.setGravity(Gravity.CENTER);
+        hero.addView(orbLabel);
+        LinearLayout.LayoutParams hl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        hl.topMargin = dp(4);
+        root.addView(hero, hl);
+
+        // Discussion
         scroll = new ScrollView(this);
+        scroll.setVerticalScrollBarEnabled(false);
         log = new LinearLayout(this);
         log.setOrientation(LinearLayout.VERTICAL);
         scroll.addView(log, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -242,35 +271,28 @@ public class MainActivity extends Activity {
         sl.topMargin = dp(8);
         root.addView(scroll, sl);
 
-        callBtn = new Button(this);
-        callBtn.setAllCaps(false);
-        callBtn.setTextSize(16);
-        styleCall(false);
-        callBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (callMode) endCall(true);
-                else startCall();
-            }
-        });
-        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(50));
-        cl.topMargin = dp(8);
-        root.addView(callBtn, cl);
+        // Raccourcis
+        HorizontalScrollView chips = new HorizontalScrollView(this);
+        chips.setHorizontalScrollBarEnabled(false);
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+        chipRow.addView(chip("Actualités du monde", "Donne-moi les principales actualités du monde aujourd'hui."));
+        chipRow.addView(chip("Météo à Conakry", "Quel temps fait-il à Conakry aujourd'hui ?"));
+        chipRow.addView(chip("Mes rappels", "Quels sont mes rappels à venir ?"));
+        chipRow.addView(chip("Quelle heure ?", "Quelle heure est-il ?"));
+        chipRow.addView(chip("Nouveau rappel", null));
+        chips.addView(chipRow);
+        LinearLayout.LayoutParams chl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        chl.topMargin = dp(8);
+        root.addView(chips, chl);
 
+        // Saisie
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.BOTTOM);
 
-        micBtn = new Button(this);
+        micBtn = new Button(this); // gardé pour la dictée interne, non affiché : l'orbe le remplace
         micBtn.setText("Parler");
-        micBtn.setAllCaps(false);
-        micBtn.setTextColor(ACCENT);
-        micBtn.setBackground(round(SURFACE, LINE, 24));
-        micBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (callMode) return;
-                toggleListening();
-            }
-        });
 
         input = new EditText(this);
         input.setHint("Écris ton message");
@@ -279,39 +301,66 @@ public class MainActivity extends Activity {
         input.setTextSize(16);
         input.setMaxLines(4);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        input.setBackground(round(SURFACE, LINE, 14));
-        input.setPadding(dp(14), dp(10), dp(14), dp(10));
+        input.setBackground(round(0xCC0F2129, LINE, 24));
+        input.setPadding(dp(18), dp(12), dp(18), dp(12));
 
-        sendBtn = new Button(this);
-        sendBtn.setText("Envoyer");
-        sendBtn.setAllCaps(false);
-        sendBtn.setTextColor(ACCENT_INK);
-        sendBtn.setBackground(round(ACCENT, ACCENT, 24));
+        sendBtn = new ImageButton(this);
+        sendBtn.setImageResource(R.drawable.ic_send);
+        sendBtn.setContentDescription("Envoyer");
+        sendBtn.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        GradientDrawable sbg = new GradientDrawable();
+        sbg.setShape(GradientDrawable.OVAL);
+        sbg.setColor(ACCENT);
+        sendBtn.setBackground(sbg);
+        sendBtn.setPadding(dp(11), dp(11), dp(11), dp(11));
         sendBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 send(input.getText().toString());
             }
         });
 
-        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
         LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        ip.leftMargin = dp(8);
         ip.rightMargin = dp(8);
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
-        bar.addView(micBtn, mp);
         bar.addView(input, ip);
-        bar.addView(sendBtn, sp);
+        bar.addView(sendBtn, new LinearLayout.LayoutParams(dp(48), dp(48)));
         LinearLayout.LayoutParams barLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         barLp.topMargin = dp(8);
         root.addView(bar, barLp);
 
         setContentView(root);
+        styleCall(false);
+    }
+
+    private Button chip(String text, final String ask) {
+        Button c = new Button(this);
+        c.setText(text);
+        c.setAllCaps(false);
+        c.setTextSize(13);
+        c.setTextColor(ACCENT);
+        c.setMinHeight(0);
+        c.setMinimumHeight(0);
+        c.setPadding(dp(14), dp(8), dp(14), dp(8));
+        c.setBackground(round(0xAA0F2129, LINE, 18));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
+        lp.rightMargin = dp(8);
+        c.setLayoutParams(lp);
+        c.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if (ask != null) {
+                    send(ask);
+                } else {
+                    input.setText("Rappelle-moi ");
+                    input.setSelection(input.getText().length());
+                    input.requestFocus();
+                }
+            }
+        });
+        return c;
     }
 
     private void styleCall(boolean active) {
-        callBtn.setText(active ? "Raccrocher" : "Appel vocal");
-        callBtn.setTextColor(active ? DANGER_INK : ACCENT);
-        callBtn.setBackground(active ? round(DANGER, DANGER, 24) : round(SURFACE, ACCENT, 24));
+        if (orb != null) orb.setInCall(active);
+        if (orbLabel != null) orbLabel.setText(active ? "Touchez pour raccrocher" : "Touchez pour parler");
     }
 
     private GradientDrawable round(int fill, int stroke, int radiusDp) {
@@ -325,11 +374,19 @@ public class MainActivity extends Activity {
     private TextView addBubble(boolean user, String text) {
         TextView t = new TextView(this);
         t.setText(text);
-        t.setTextSize(16);
+        t.setTextSize(15);
+        t.setLineSpacing(0f, 1.12f);
         t.setTextColor(FG);
         t.setTextIsSelectable(true);
-        t.setPadding(dp(12), dp(8), dp(12), dp(8));
-        t.setBackground(user ? round(SURFACE2, LINE, 14) : round(SURFACE, ACCENT, 14));
+        t.setPadding(dp(14), dp(10), dp(14), dp(10));
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(user ? 0xFF12414D : 0xE60F2129);
+        g.setStroke(dp(1), user ? 0x884FD6E6 : LINE);
+        float r = dp(18), q = dp(4);
+        g.setCornerRadii(user
+                ? new float[]{r, r, r, r, q, q, r, r}
+                : new float[]{r, r, r, r, r, r, q, q});
+        t.setBackground(g);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.gravity = user ? Gravity.END : Gravity.START;
         lp.topMargin = dp(5);
@@ -337,6 +394,9 @@ public class MainActivity extends Activity {
         if (user) lp.leftMargin = dp(48);
         else lp.rightMargin = dp(48);
         log.addView(t, lp);
+        t.setAlpha(0f);
+        t.setTranslationY(dp(8));
+        t.animate().alpha(1f).translationY(0f).setDuration(200).start();
         scrollDown();
         return t;
     }
@@ -351,6 +411,14 @@ public class MainActivity extends Activity {
 
     private void setStatus(String s) {
         status.setText(s);
+        if (orb == null) return;
+        String l = s.toLowerCase(Locale.FRANCE);
+        int m = OrbView.IDLE;
+        if (l.contains("écoute")) m = OrbView.LISTENING;
+        else if (l.contains("réfléchis")) m = OrbView.THINKING;
+        else if (l.contains("parle")) m = OrbView.SPEAKING;
+        else if (callMode) m = OrbView.STANDBY;
+        orb.setMode(m);
     }
 
     // ---------------------------------------------------------------- Appel vocal
@@ -598,7 +666,7 @@ public class MainActivity extends Activity {
 
     private void openNotifAccess() {
         try {
-            Toast.makeText(this, "Active « Jarvis » dans la liste, puis reviens à l'application.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Active « Camara AI » dans la liste, puis reviens à l'application.", Toast.LENGTH_LONG).show();
             startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
         } catch (Exception e) {
             Toast.makeText(this, "Ouvre les paramètres Android, puis Notifications, puis Accès aux notifications.", Toast.LENGTH_LONG).show();
@@ -631,7 +699,7 @@ public class MainActivity extends Activity {
         box.setPadding(dp(20), dp(8), dp(20), 0);
 
         TextView help = new TextView(this);
-        help.setText("Jarvis utilise l'intelligence artificielle Claude. Crée une clé API sur console.anthropic.com (rubrique API keys), "
+        help.setText("Camara AI utilise l'intelligence artificielle Claude. Crée une clé API sur console.anthropic.com (rubrique API keys), "
                 + "ajoute un peu de crédit, puis colle la clé ici. Elle reste uniquement sur ce téléphone.");
         help.setTextSize(14);
         box.addView(help);
@@ -657,14 +725,14 @@ public class MainActivity extends Activity {
         box.addView(waHead);
 
         TextView waHelp = new TextView(this);
-        waHelp.setText("Quand c'est activé, Jarvis répond aux messages texte reçus sur WhatsApp (pas aux vocaux, photos ni appels). "
+        waHelp.setText("Quand c'est activé, Camara AI répond aux messages texte reçus sur WhatsApp (pas aux vocaux, photos ni appels). "
                 + "Chaque réponse précise qu'elle vient d'un assistant automatique. Le texte des messages reçus est envoyé à Claude pour préparer la réponse. "
                 + "Active-le seulement quand tu es absent.");
         waHelp.setTextSize(13);
         box.addView(waHelp);
 
         final Switch waSwitch = new Switch(this);
-        waSwitch.setText("Jarvis répond à ma place");
+        waSwitch.setText("Camara AI répond à ma place");
         waSwitch.setChecked(prefs.getBoolean("wa_auto", false));
         waSwitch.setPadding(0, dp(8), 0, dp(4));
         box.addView(waSwitch);

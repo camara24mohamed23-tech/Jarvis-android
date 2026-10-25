@@ -22,9 +22,9 @@ public class ReminderReceiver extends BroadcastReceiver {
 
         NotificationManager nm = (NotificationManager) ctx.getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "Rappels Jarvis", NotificationManager.IMPORTANCE_HIGH);
+            NotificationChannel ch = new NotificationChannel(CHANNEL, "Rappels Camara AI", NotificationManager.IMPORTANCE_HIGH);
             ch.enableVibration(true);
-            ch.setDescription("Rappels et rendez-vous créés avec Jarvis");
+            ch.setDescription("Rappels et rendez-vous créés avec Camara AI");
             nm.createNotificationChannel(ch);
         }
 
@@ -35,7 +35,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 ? new Notification.Builder(ctx, CHANNEL)
                 : new Notification.Builder(ctx).setPriority(Notification.PRIORITY_HIGH).setDefaults(Notification.DEFAULT_ALL);
         b.setSmallIcon(R.drawable.ic_notif)
-                .setContentTitle("Jarvis")
+                .setContentTitle("Camara AI")
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
                 .setContentIntent(open)

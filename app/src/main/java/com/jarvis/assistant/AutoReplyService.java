@@ -192,7 +192,7 @@ public class AutoReplyService extends NotificationListenerService {
         if (answer.isEmpty()) return;
 
         String label = owner.isEmpty() ? "assistant automatique" : "assistant de " + owner;
-        String full = "[Jarvis, " + label + "] " + answer;
+        String full = "[Camara AI, " + label + "] " + answer;
 
         boolean sent = sendReply(n, full);
         if (sent) {
@@ -212,7 +212,7 @@ public class AutoReplyService extends NotificationListenerService {
     private String systemPrompt(String owner, String rules, String contact) {
         String now = new SimpleDateFormat("EEEE d MMMM yyyy 'à' HH:mm", Locale.FRANCE).format(new Date());
         String name = owner.isEmpty() ? "ton propriétaire" : owner;
-        return "Tu es Jarvis, l'assistant automatique de " + name + ". Tu réponds sur WhatsApp à la place de " + name
+        return "Tu es Camara AI, l'assistant automatique de " + name + ". Tu réponds sur WhatsApp à la place de " + name
                 + " pendant son absence. Tu écris à : " + contact + ". Date et heure : " + now + ".\n"
                 + "Règles :\n"
                 + "1. Tu es un assistant, jamais " + name + " : ne prétends jamais être lui ni un humain. Si on te le demande, dis que tu es son assistant automatique.\n"
@@ -299,7 +299,7 @@ public class AutoReplyService extends NotificationListenerService {
         try {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (Build.VERSION.SDK_INT >= 26) {
-                NotificationChannel ch = new NotificationChannel(ReminderReceiver.CHANNEL, "Rappels Jarvis", NotificationManager.IMPORTANCE_HIGH);
+                NotificationChannel ch = new NotificationChannel(ReminderReceiver.CHANNEL, "Rappels Camara AI", NotificationManager.IMPORTANCE_HIGH);
                 nm.createNotificationChannel(ch);
             }
             PendingIntent open = PendingIntent.getActivity(
@@ -341,7 +341,7 @@ public class AutoReplyService extends NotificationListenerService {
                 JSONObject o = a.getJSONObject(i);
                 sb.append(f.format(new Date(o.getLong("t")))).append("  ").append(o.getString("who")).append('\n')
                         .append("Reçu : ").append(o.getString("in")).append('\n')
-                        .append("Jarvis : ").append(o.getString("out")).append("\n\n");
+                        .append("Camara AI : ").append(o.getString("out")).append("\n\n");
             }
             return sb.toString().trim();
         } catch (Exception e) {

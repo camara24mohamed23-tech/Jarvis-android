@@ -232,7 +232,7 @@ public class JarvisBrain {
     private String systemPrompt() {
         String now = new SimpleDateFormat("EEEE d MMMM yyyy 'à' HH:mm", Locale.FRANCE).format(new Date());
         String iso = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm", Locale.US).format(new Date());
-        return "Tu es JARVIS, l'assistant personnel de poche de l'utilisateur, installé sur son téléphone Android. "
+        return "Tu es CAMARA AI, l'assistant personnel de poche de l'utilisateur, installé sur son téléphone Android. "
                 + "Réponds toujours en français, de façon chaleureuse, claire et brève (1 à 4 phrases en conversation courante, jusqu'à 8 phrases pour un résumé d'actualité), car ta réponse est lue à voix haute. "
                 + "Pas d'emojis, pas de titres, pas de markdown.\n"
                 + "Date et heure actuelles : " + now + " (heure locale " + iso + ").\n"
@@ -374,7 +374,7 @@ public class JarvisBrain {
                 Intent i = new Intent(AlarmClock.ACTION_SET_ALARM)
                         .putExtra(AlarmClock.EXTRA_HOUR, h)
                         .putExtra(AlarmClock.EXTRA_MINUTES, m)
-                        .putExtra(AlarmClock.EXTRA_MESSAGE, in.optString("libelle", "Jarvis"))
+                        .putExtra(AlarmClock.EXTRA_MESSAGE, in.optString("libelle", "Camara AI"))
                         .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
                 later(i, "Aucune application Horloge trouvée.");
                 return ok();
@@ -385,7 +385,7 @@ public class JarvisBrain {
                 if (s < 1 || s > 86400) throw new Exception("Durée invalide");
                 Intent i = new Intent(AlarmClock.ACTION_SET_TIMER)
                         .putExtra(AlarmClock.EXTRA_LENGTH, s)
-                        .putExtra(AlarmClock.EXTRA_MESSAGE, in.optString("libelle", "Jarvis"))
+                        .putExtra(AlarmClock.EXTRA_MESSAGE, in.optString("libelle", "Camara AI"))
                         .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
                 later(i, "Aucune application Horloge trouvée.");
                 return ok();

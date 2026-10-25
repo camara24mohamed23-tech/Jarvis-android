@@ -6,7 +6,7 @@ import android.os.Build;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
-/** Bouton « Parler à Jarvis » dans le panneau de réglages rapides. */
+/** Bouton « Parler à Camara AI » dans le panneau de réglages rapides. */
 public class TalkTileService extends TileService {
     @Override
     public void onStartListening() {

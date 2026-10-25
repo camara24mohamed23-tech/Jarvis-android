@@ -24,7 +24,7 @@
     <application
         android:allowBackup="false"
         android:icon="@drawable/ic_launcher"
-        android:label="Jarvis"
+        android:label="Camara AI"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
         <activity
@@ -64,7 +64,7 @@
             android:name=".TalkTileService"
             android:exported="true"
             android:icon="@drawable/ic_notif"
-            android:label="Parler à Jarvis"
+            android:label="Parler à Camara AI"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -74,7 +74,7 @@
         <service
             android:name=".AutoReplyService"
             android:exported="true"
-            android:label="Jarvis"
+            android:label="Camara AI"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
