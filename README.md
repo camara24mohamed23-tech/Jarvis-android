@@ -54,3 +54,7 @@ Dans Réglages, active « Camara AI répond à ma place ». Camara AI lit les no
 - **Assistant par défaut :** Paramètres, Applications, Applications par défaut, Assistant numérique, puis choisis Camara AI. L'appui long sur le bouton d'accueil ou le geste d'assistant ouvre alors Camara AI et lance l'appel vocal tout de suite.
 - **Réglages rapides :** ajoute la tuile « Parler à Camara AI » (panneau de réglages rapides, icône crayon ou +). Un appui ouvre Camara AI en mode écoute.
 - Le téléphone doit être déverrouillé. Il n'y a pas de réveil à la voix du type « Dis Camara AI » : il demande un moteur de détection dédié.
+
+## Mises à jour
+
+Chaque version est signée avec la même clé (`app/signing/camara-ai.p12`). Une nouvelle version s'installe donc par-dessus l'ancienne, sans perdre la clé API ni les réglages. Cette clé est publique : ne la considère pas comme un secret.

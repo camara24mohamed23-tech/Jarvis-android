@@ -10,13 +10,29 @@ android {
         applicationId "com.jarvis.assistant"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        // Le numéro de version augmente à chaque construction GitHub, pour que Android accepte la mise à jour.
+        versionCode (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+        versionName "1.1"
+    }
+
+    // Clé de signature unique : chaque nouvelle version s'installe par-dessus l'ancienne.
+    signingConfigs {
+        camara {
+            storeFile file("signing/camara-ai.p12")
+            storeType "pkcs12"
+            storePassword "p0vCQZ2jextIZNzulVYc088u"
+            keyAlias "camaraai"
+            keyPassword "p0vCQZ2jextIZNzulVYc088u"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.camara
+        }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.camara
         }
     }
 
