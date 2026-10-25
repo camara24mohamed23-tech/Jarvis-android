@@ -136,6 +136,30 @@ public class MainActivity extends Activity {
                 + "Je cherche sur Internet, je te donne l'actualité, je crée des rappels, je règle des alarmes, j'ouvre des applications "
                 + "et je prépare des appels, des SMS ou des commandes en ligne.");
         if (prefs.getString("apiKey", "").trim().isEmpty()) showSettings(true);
+        else handleLaunch(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleLaunch(intent);
+    }
+
+    /** Lancé comme assistant (appui long, geste, tuile) : l'appel vocal démarre tout de suite. */
+    private void handleLaunch(Intent i) {
+        if (i == null) return;
+        String a = i.getAction();
+        boolean talk = i.getBooleanExtra("autostart", false)
+                || Intent.ACTION_ASSIST.equals(a) || Intent.ACTION_VOICE_COMMAND.equals(a);
+        if (!talk) return;
+        i.removeExtra("autostart");
+        i.setAction(Intent.ACTION_MAIN);
+        main.postDelayed(new Runnable() {
+            public void run() {
+                if (!callMode) startCall();
+            }
+        }, 700);
     }
 
     // ---------------------------------------------------------------- Interface

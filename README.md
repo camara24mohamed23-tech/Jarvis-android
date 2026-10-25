@@ -48,3 +48,9 @@ Dans Réglages, active « Jarvis répond à ma place ». Jarvis lit les notifica
 - Autorise l'accès aux notifications (bouton dans Réglages). Sur Android 13 ou plus récent, si le réglage est grisé : Paramètres, Applications, Jarvis, menu à trois points, « Autoriser les paramètres restreints ».
 - Désactive l'économiseur de batterie pour Jarvis, sinon Android peut arrêter le service.
 - Le texte des messages reçus est envoyé à Claude pour préparer la réponse. Ne l'active pas si tes contacts échangent des informations très confidentielles avec toi.
+
+## Assistant vocal
+
+- **Assistant par défaut :** Paramètres, Applications, Applications par défaut, Assistant numérique, puis choisis Jarvis. L'appui long sur le bouton d'accueil ou le geste d'assistant ouvre alors Jarvis et lance l'appel vocal tout de suite.
+- **Réglages rapides :** ajoute la tuile « Parler à Jarvis » (panneau de réglages rapides, icône crayon ou +). Un appui ouvre Jarvis en mode écoute.
+- Le téléphone doit être déverrouillé. Il n'y a pas de réveil à la voix du type « Dis Jarvis » : il demande un moteur de détection dédié.
