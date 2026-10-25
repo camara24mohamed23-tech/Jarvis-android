@@ -37,3 +37,14 @@ Les appels et les SMS restent validés par toi : Jarvis ne peut pas les lancer s
 - **Commandes en ligne :** Jarvis cherche le produit, compare des offres, ouvre la page ou prépare un message pour le vendeur. Tu finalises toi-même le paiement.
 
 La recherche internet doit être activée sur ton compte Anthropic (console.anthropic.com, Settings) et chaque recherche est facturée en plus des messages.
+
+## Réponses automatiques WhatsApp
+
+Dans Réglages, active « Jarvis répond à ma place ». Jarvis lit les notifications WhatsApp et répond aux messages texte avec le bouton « Répondre » de la notification. Il ignore les vocaux, photos, appels et, par défaut, les groupes.
+
+- Chaque réponse commence par « [Jarvis, assistant de ... ] » : le contact sait qu'il parle à un assistant automatique.
+- Jarvis ne donne aucune information personnelle et ne s'engage sur rien. Pour un message urgent, un sujet d'argent ou un code, il dit qu'il transmet et tu reçois une notification « À voir sur WhatsApp ».
+- « Voir les réponses envoyées » affiche le journal de tout ce qui a été envoyé.
+- Autorise l'accès aux notifications (bouton dans Réglages). Sur Android 13 ou plus récent, si le réglage est grisé : Paramètres, Applications, Jarvis, menu à trois points, « Autoriser les paramètres restreints ».
+- Désactive l'économiseur de batterie pour Jarvis, sinon Android peut arrêter le service.
+- Le texte des messages reçus est envoyé à Claude pour préparer la réponse. Ne l'active pas si tes contacts échangent des informations très confidentielles avec toi.

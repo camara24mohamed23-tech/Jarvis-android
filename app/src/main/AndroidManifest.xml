@@ -38,6 +38,16 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name=".AutoReplyService"
+            android:exported="true"
+            android:label="Jarvis"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <receiver
             android:name=".ReminderReceiver"
             android:exported="false" />

@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
@@ -23,6 +24,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.Switch;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -564,6 +567,40 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- Réglages
 
+    private boolean notifAccess() {
+        String s = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return s != null && s.contains(getPackageName());
+    }
+
+    private void openNotifAccess() {
+        try {
+            Toast.makeText(this, "Active « Jarvis » dans la liste, puis reviens à l'application.", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+        } catch (Exception e) {
+            Toast.makeText(this, "Ouvre les paramètres Android, puis Notifications, puis Accès aux notifications.", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void showWaLog() {
+        TextView t = new TextView(this);
+        t.setText(AutoReplyService.readLog(this));
+        t.setTextSize(14);
+        t.setTextIsSelectable(true);
+        t.setPadding(dp(20), dp(8), dp(20), dp(8));
+        ScrollView s = new ScrollView(this);
+        s.addView(t);
+        new AlertDialog.Builder(this)
+                .setTitle("Réponses envoyées")
+                .setView(s)
+                .setPositiveButton("Fermer", null)
+                .setNeutralButton("Vider", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int w) {
+                        AutoReplyService.clearLog(MainActivity.this);
+                    }
+                })
+                .show();
+    }
+
     private void showSettings(boolean first) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
@@ -588,15 +625,86 @@ public class MainActivity extends Activity {
         model.setText(prefs.getString("model", JarvisBrain.DEFAULT_MODEL));
         box.addView(model);
 
+        TextView waHead = new TextView(this);
+        waHead.setText("Réponses automatiques WhatsApp");
+        waHead.setTextSize(16);
+        waHead.setTypeface(waHead.getTypeface(), android.graphics.Typeface.BOLD);
+        waHead.setPadding(0, dp(18), 0, dp(4));
+        box.addView(waHead);
+
+        TextView waHelp = new TextView(this);
+        waHelp.setText("Quand c'est activé, Jarvis répond aux messages texte reçus sur WhatsApp (pas aux vocaux, photos ni appels). "
+                + "Chaque réponse précise qu'elle vient d'un assistant automatique. Le texte des messages reçus est envoyé à Claude pour préparer la réponse. "
+                + "Active-le seulement quand tu es absent.");
+        waHelp.setTextSize(13);
+        box.addView(waHelp);
+
+        final Switch waSwitch = new Switch(this);
+        waSwitch.setText("Jarvis répond à ma place");
+        waSwitch.setChecked(prefs.getBoolean("wa_auto", false));
+        waSwitch.setPadding(0, dp(8), 0, dp(4));
+        box.addView(waSwitch);
+
+        final CheckBox waGroups = new CheckBox(this);
+        waGroups.setText("Répondre aussi dans les groupes");
+        waGroups.setChecked(prefs.getBoolean("wa_groups", false));
+        box.addView(waGroups);
+
+        final EditText waOwner = new EditText(this);
+        waOwner.setHint("Ton prénom");
+        waOwner.setSingleLine(true);
+        waOwner.setText(prefs.getString("wa_owner", ""));
+        box.addView(waOwner);
+
+        final EditText waRules = new EditText(this);
+        waRules.setHint("Consignes (ex. : je suis occupé, prends un message)");
+        waRules.setMinLines(2);
+        waRules.setText(prefs.getString("wa_rules", ""));
+        box.addView(waRules);
+
+        TextView waAccess = new TextView(this);
+        waAccess.setText(notifAccess() ? "Accès aux notifications : accordé" : "Accès aux notifications : non accordé");
+        waAccess.setTextSize(13);
+        waAccess.setPadding(0, dp(8), 0, 0);
+        box.addView(waAccess);
+
+        Button waGrant = new Button(this);
+        waGrant.setText("Autoriser l'accès aux notifications");
+        waGrant.setAllCaps(false);
+        waGrant.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                openNotifAccess();
+            }
+        });
+        box.addView(waGrant);
+
+        Button waLogBtn = new Button(this);
+        waLogBtn.setText("Voir les réponses envoyées");
+        waLogBtn.setAllCaps(false);
+        waLogBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                showWaLog();
+            }
+        });
+        box.addView(waLogBtn);
+
+        ScrollView sv = new ScrollView(this);
+        sv.addView(box);
+
         new AlertDialog.Builder(this)
                 .setTitle(first ? "Bienvenue" : "Réglages")
-                .setView(box)
+                .setView(sv)
                 .setPositiveButton("Enregistrer", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
                         prefs.edit()
                                 .putString("apiKey", key.getText().toString().trim())
                                 .putString("model", model.getText().toString().trim())
+                                .putBoolean("wa_auto", waSwitch.isChecked())
+                                .putBoolean("wa_groups", waGroups.isChecked())
+                                .putString("wa_owner", waOwner.getText().toString().trim())
+                                .putString("wa_rules", waRules.getText().toString().trim())
                                 .apply();
+                        if (waSwitch.isChecked() && !notifAccess()) openNotifAccess();
                     }
                 })
                 .setNeutralButton("Effacer la discussion", new DialogInterface.OnClickListener() {
