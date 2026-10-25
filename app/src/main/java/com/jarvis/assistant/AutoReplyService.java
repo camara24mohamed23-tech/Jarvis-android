@@ -151,7 +151,7 @@ public class AutoReplyService extends NotificationListenerService {
     private void handle(String who, String text, Notification n) {
         SharedPreferences p = getSharedPreferences(PREFS, 0);
         String key = p.getString("apiKey", "").trim();
-        if (key.isEmpty() || !p.getBoolean("wa_auto", false)) return;
+        if (!ApiClient.ready(this) || !p.getBoolean("wa_auto", false)) return;
         String model = p.getString("model", JarvisBrain.DEFAULT_MODEL).trim();
         if (model.isEmpty()) model = JarvisBrain.DEFAULT_MODEL;
         String owner = p.getString("wa_owner", "").trim();
@@ -257,14 +257,8 @@ public class AutoReplyService extends NotificationListenerService {
                 .put("system", system)
                 .put("messages", msgs);
 
-        HttpURLConnection c = (HttpURLConnection) new URL(API_URL).openConnection();
-        c.setRequestMethod("POST");
-        c.setConnectTimeout(20000);
+        HttpURLConnection c = ApiClient.open(this);
         c.setReadTimeout(45000);
-        c.setDoOutput(true);
-        c.setRequestProperty("content-type", "application/json");
-        c.setRequestProperty("x-api-key", key);
-        c.setRequestProperty("anthropic-version", "2023-06-01");
         OutputStream os = c.getOutputStream();
         os.write(body.toString().getBytes("UTF-8"));
         os.close();

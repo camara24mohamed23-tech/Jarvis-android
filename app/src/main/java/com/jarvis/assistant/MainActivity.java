@@ -141,7 +141,7 @@ public class MainActivity extends Activity {
         addBubble(false, "Bonjour, je suis Camara AI. Touche le grand cercle pour parler avec moi sans les mains, ou écris-moi. "
                 + "Je cherche sur Internet, je te donne l'actualité, je crée des rappels, je règle des alarmes, j'ouvre des applications "
                 + "et je prépare des appels, des SMS ou des commandes en ligne.");
-        if (prefs.getString("apiKey", "").trim().isEmpty()) showSettings(true);
+        if (!ApiClient.ready(MainActivity.this)) showSettings(true);
         else handleLaunch(getIntent());
     }
 
@@ -424,7 +424,7 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- Appel vocal
 
     private void startCall() {
-        if (prefs.getString("apiKey", "").trim().isEmpty()) {
+        if (!ApiClient.ready(MainActivity.this)) {
             showSettings(true);
             return;
         }
@@ -481,7 +481,7 @@ public class MainActivity extends Activity {
             endCall(true);
             return;
         }
-        if (prefs.getString("apiKey", "").trim().isEmpty()) {
+        if (!ApiClient.ready(MainActivity.this)) {
             endCall(false);
             showSettings(true);
             return;
@@ -700,7 +700,8 @@ public class MainActivity extends Activity {
 
         TextView help = new TextView(this);
         help.setText("Camara AI utilise l'intelligence artificielle Claude. Crée une clé API sur console.anthropic.com (rubrique API keys), "
-                + "ajoute un peu de crédit, puis colle la clé ici. Elle reste uniquement sur ce téléphone.");
+                + "ajoute un peu de crédit, puis colle la clé ici. Elle reste uniquement sur ce téléphone. "
+                + "Si on t'a donné un code d'accès, colle-le plus bas : tu n'as alors pas besoin de clé API.");
         help.setTextSize(14);
         box.addView(help);
 
@@ -716,6 +717,24 @@ public class MainActivity extends Activity {
         model.setSingleLine(true);
         model.setText(prefs.getString("model", JarvisBrain.DEFAULT_MODEL));
         box.addView(model);
+
+        TextView codeHead = new TextView(this);
+        codeHead.setText("Code d'accès (sans clé API)");
+        codeHead.setTextSize(14);
+        codeHead.setPadding(0, dp(14), 0, 0);
+        box.addView(codeHead);
+
+        final EditText codeField = new EditText(this);
+        codeField.setHint("Code donné par le propriétaire");
+        codeField.setSingleLine(true);
+        codeField.setText(prefs.getString("accessCode", ""));
+        box.addView(codeField);
+
+        final EditText proxyField = new EditText(this);
+        proxyField.setHint("Adresse du relais (https://...)");
+        proxyField.setSingleLine(true);
+        proxyField.setText(prefs.getString("proxyUrl", ApiClient.DEFAULT_PROXY));
+        box.addView(proxyField);
 
         TextView waHead = new TextView(this);
         waHead.setText("Réponses automatiques WhatsApp");
@@ -791,6 +810,8 @@ public class MainActivity extends Activity {
                         prefs.edit()
                                 .putString("apiKey", key.getText().toString().trim())
                                 .putString("model", model.getText().toString().trim())
+                                .putString("accessCode", codeField.getText().toString().trim())
+                                .putString("proxyUrl", proxyField.getText().toString().trim())
                                 .putBoolean("wa_auto", waSwitch.isChecked())
                                 .putBoolean("wa_groups", waGroups.isChecked())
                                 .putString("wa_owner", waOwner.getText().toString().trim())

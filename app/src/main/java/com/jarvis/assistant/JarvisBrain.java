@@ -164,14 +164,8 @@ public class JarvisBrain {
     // ------------------------------------------------------------------ API
 
     private JSONObject post(String key, JSONObject body) throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL(API_URL).openConnection();
-        c.setRequestMethod("POST");
-        c.setConnectTimeout(20000);
+        HttpURLConnection c = ApiClient.open(act);
         c.setReadTimeout(120000);
-        c.setDoOutput(true);
-        c.setRequestProperty("content-type", "application/json");
-        c.setRequestProperty("x-api-key", key);
-        c.setRequestProperty("anthropic-version", "2023-06-01");
         OutputStream os = c.getOutputStream();
         os.write(body.toString().getBytes("UTF-8"));
         os.close();
@@ -214,9 +208,9 @@ public class JarvisBrain {
     static String explain(Exception e) {
         if (e instanceof ApiException) {
             ApiException a = (ApiException) e;
-            if (a.code == 401) return "La clé API est refusée. Vérifie-la dans Réglages.";
+            if (a.code == 401) return "Ta clé API ou ton code d'accès est refusé. Vérifie-le dans Réglages.";
             if (a.code == 404) return "Ce modèle n'existe pas. Vérifie son nom dans Réglages.";
-            if (a.code == 429) return "Trop de demandes d'un coup. Réessaie dans un instant.";
+            if (a.code == 429) return a.getMessage() != null && a.getMessage().toLowerCase(Locale.ROOT).contains("limite") ? a.getMessage() : "Trop de demandes d'un coup. Réessaie dans un instant.";
             if (a.code == 529 || a.code >= 500) return "Le service Claude est surchargé. Réessaie dans un instant.";
             if (a.code == 400 && a.getMessage() != null && a.getMessage().toLowerCase(Locale.ROOT).contains("search")) {
                 return "La recherche internet n'est pas activée sur ton compte Anthropic. Active-la dans la console (Settings, puis Privacy ou Capabilities), puis réessaie.";
